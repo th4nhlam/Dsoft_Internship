@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <KWS_inferencing.h>
+
 
 // put function declarations here:
 int myFunction(int, int);
