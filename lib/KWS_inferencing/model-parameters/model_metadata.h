@@ -52,10 +52,10 @@
 #define EI_CLASSIFIER_DATATYPE_UINT8             3
 #define EI_CLASSIFIER_DATATYPE_INT8              9
 
-#define EI_CLASSIFIER_PROJECT_ID                 241583
+#define EI_CLASSIFIER_PROJECT_ID                 267320
 #define EI_CLASSIFIER_PROJECT_OWNER              "Phạm Trần Thanh Lâm"
-#define EI_CLASSIFIER_PROJECT_NAME               "voice-rec"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     15
+#define EI_CLASSIFIER_PROJECT_NAME               "custom_model"
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     2
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        507
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           16000
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      1
@@ -92,7 +92,7 @@
 
 
 #define EI_CLASSIFIER_HAS_FFT_INFO               1
-#define EI_CLASSIFIER_LOAD_FFT_32                0
+#define EI_CLASSIFIER_LOAD_FFT_32                1
 #define EI_CLASSIFIER_LOAD_FFT_64                0
 #define EI_CLASSIFIER_LOAD_FFT_128               0
 #define EI_CLASSIFIER_LOAD_FFT_256               1

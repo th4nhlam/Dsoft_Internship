@@ -40,7 +40,7 @@ ei_dsp_config_mfcc_t ei_dsp_config_7 = {
     13, // int num_cepstral
     0.05f, // float frame_length
     0.025f, // float frame_stride
-    40, // int num_filters
+    32, // int num_filters
     256, // int fft_length
     101, // int win_size
     0, // int low_frequency
@@ -99,11 +99,11 @@ const ei_model_performance_calibration_t ei_calibration = {
     0   /* Don't use flags */
 };
 
-const ei_impulse_t impulse_241583_15 = {
-    .project_id = 241583,
+const ei_impulse_t impulse_267320_2 = {
+    .project_id = 267320,
     .project_owner = "Phạm Trần Thanh Lâm",
-    .project_name = "voice-rec",
-    .deploy_version = 15,
+    .project_name = "custom_model",
+    .deploy_version = 2,
 
     .nn_input_frame_size = 507,
     .raw_sample_count = 16000,
@@ -140,6 +140,6 @@ const ei_impulse_t impulse_241583_15 = {
     .categories = ei_classifier_inferencing_categories
 };
 
-const ei_impulse_t ei_default_impulse = impulse_241583_15;
+const ei_impulse_t ei_default_impulse = impulse_267320_2;
 
 #endif // _EI_CLASSIFIER_MODEL_METADATA_H_

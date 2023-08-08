@@ -1,7 +1,7 @@
 
 #include <Arduino.h>
 #define EIDSP_QUANTIZE_FILTERBANK 0
-
+#include <iostream>
 /* Includes ---------------------------------------------------------------- */
 #include <KWS_inferencing.h>
 
@@ -10,7 +10,7 @@
 
 #include "driver/i2s.h"
 
-#define threshold 0.9
+#define threshold 0.7
 #define ledRpin 21
 #define ledGpin 22
 #define ledBpin 23
@@ -91,13 +91,7 @@ static void capture_samples(void *arg) {
   vTaskDelete(NULL);
 }
 
-/**
-   @brief      Init inferencing struct and setup/start PDM
 
-   @param[in]  n_samples  The n samples
-
-   @return     { description_of_the_return_value }
-*/
 static bool microphone_inference_start(uint32_t n_samples) {
   inference.buffer = (int16_t *)malloc(n_samples * sizeof(int16_t));
 
@@ -224,10 +218,9 @@ void setup() {
   ei_printf("\tSample length: %d ms.\n", EI_CLASSIFIER_RAW_SAMPLE_COUNT / 16);
   ei_printf("\tNo. of classes: %d\n", sizeof(ei_classifier_inferencing_categories) / sizeof(ei_classifier_inferencing_categories[0]));
 
-  ei_printf("\nStarting continious inference in 2 seconds...\n");
-  ei_sleep(2000);
+  
 
-  if (microphone_inference_start(EI_CLASSIFIER_RAW_SAMPLE_COUNT) == false) {
+  if (microphone_inference_start(48000) == false) {
     ei_printf("ERR: Could not allocate audio buffer (size %d), this could be due to the window length of your model\r\n", EI_CLASSIFIER_RAW_SAMPLE_COUNT);
     return;
   }
@@ -244,26 +237,28 @@ void loop() {
     ei_printf("ERR: Failed to record audio...\n");
     return;
   }
+  
+  ei_printf("Recording...\n");
 
   signal_t signal;
   signal.total_length = EI_CLASSIFIER_RAW_SAMPLE_COUNT;
   signal.get_data = &microphone_audio_signal_get_data;
   ei_impulse_result_t result = { 0 };
-
+  
   EI_IMPULSE_ERROR r = run_classifier(&signal, &result, debug_nn);
   if (r != EI_IMPULSE_OK) {
     ei_printf("ERR: Failed to run classifier (%d)\n", r);
     return;
   }
-
+  
   //code control detect > 90%
-  //[0,1,2,3,4,5]: [_noise, _unknown, down, off, up, on]: [R-G-B-Y-W-P] 
+  //[0,1,2,3,4,5]: [down, noise, on, stop, unknown, up]: [R-G-B-Y-W-P] 
   if (result.classification[0].value > threshold) controlLed(1, 0, 0);
   else if (result.classification[1].value > threshold) controlLed(0, 1, 0);
   else if (result.classification[2].value > threshold) controlLed(0, 0, 1);
-  else if (result.classification[3].value > threshold) controlLed(1, 1, 0);
+  else if (result.classification[3].value > 0.5) controlLed(1, 1, 0);
   else if (result.classification[4].value > threshold) controlLed(1, 1, 1);
-  else if (result.classification[5].value > threshold) controlLed(1, 0, 1);
+  else if (result.classification[5].value > 0.9) controlLed(1, 0, 1);
   else controlLed(0, 0, 0);
 
 
