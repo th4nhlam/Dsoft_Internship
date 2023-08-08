@@ -1,7 +1,6 @@
 
-#include <Arduino.h>
 #define EIDSP_QUANTIZE_FILTERBANK 0
-#include <iostream>
+
 /* Includes ---------------------------------------------------------------- */
 #include <KWS_inferencing.h>
 
@@ -9,11 +8,13 @@
 #include "freertos/task.h"
 
 #include "driver/i2s.h"
-
-#define threshold 0.7
+#undef EI_CLASSIFIER_RAW_SAMPLE_COUNT           
+#define EI_CLASSIFIER_RAW_SAMPLE_COUNT 16000
+#define threshold 0.9
 #define ledRpin 21
 #define ledGpin 22
 #define ledBpin 23
+#define button 27
 
 /** Audio buffers, pointers and selectors */
 typedef struct {
@@ -28,16 +29,19 @@ static const uint32_t sample_buffer_size = 2048;
 static signed short sampleBuffer[sample_buffer_size];
 static bool debug_nn = false;  // Set this to true to see e.g. features generated from the raw signal
 static bool record_status = true;
+
 static void audio_inference_callback(uint32_t n_bytes);
 static void capture_samples(void *arg);
+static bool microphone_inference_start(uint32_t n_samples);
+static bool microphone_inference_record(void);
+static void microphone_inference_end(void);
+static int microphone_audio_signal_get_data(size_t offset, size_t length, float *out_ptr);
 static int i2s_init(uint32_t sampling_rate);
 static int i2s_deinit(void);
+
 /**
    @brief      Arduino setup function
 */
-
-
-
 void controlLed(uint8_t R, uint8_t G, uint8_t B) {
 
     digitalWrite(ledRpin,R);
@@ -46,7 +50,93 @@ void controlLed(uint8_t R, uint8_t G, uint8_t B) {
   
 
 }
+void setup() {
+  pinMode(ledRpin, OUTPUT);
+  pinMode(ledGpin, OUTPUT);
+  pinMode(ledBpin, OUTPUT);
+  pinMode(button, INPUT_PULLUP);
+  Serial.begin(115200);
 
+  while (!Serial)
+    ;
+  Serial.println("Edge Impulse Inferencing Demo");
+
+  // summary of inferencing settings (from model_metadata.h)
+  ei_printf("Inferencing settings:\n");
+  ei_printf("\tInterval: ");
+  ei_printf_float((float)EI_CLASSIFIER_INTERVAL_MS);
+  ei_printf(" ms.\n");
+  ei_printf("\tFrame size: %d\n", EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE);
+  ei_printf("\tSample length: %d ms.\n", EI_CLASSIFIER_RAW_SAMPLE_COUNT / 16);
+  ei_printf("\tNo. of classes: %d\n", sizeof(ei_classifier_inferencing_categories) / sizeof(ei_classifier_inferencing_categories[0]));
+
+  ei_printf("\nStarting continious inference in 2 seconds...\n");
+  ei_sleep(2000);
+
+  if (microphone_inference_start(EI_CLASSIFIER_RAW_SAMPLE_COUNT) == false) {
+    ei_printf("ERR: Could not allocate audio buffer (size %d), this could be due to the window length of your model\r\n", EI_CLASSIFIER_RAW_SAMPLE_COUNT);
+    return;
+  }
+
+  ei_printf("Recording...\n");
+}
+
+/**
+   @brief      Arduino main function. Runs the inferencing loop.
+*/
+void loop() {
+  int buttonState = digitalRead(button);
+  if (buttonState){
+  ei_printf("Start recording...\n");
+  Serial.println(millis());
+  bool m = microphone_inference_record();
+  if (!m) {
+    ei_printf("ERR: Failed to record audio...\n");
+    return;
+  }
+  
+  signal_t signal;
+  signal.total_length = 80000;
+  signal.get_data = &microphone_audio_signal_get_data;
+  ei_impulse_result_t result = { 0 };
+
+  EI_IMPULSE_ERROR r = run_classifier(&signal, &result, debug_nn);
+  if (r != EI_IMPULSE_OK) {
+    ei_printf("ERR: Failed to run classifier (%d)\n", r);
+    return;
+  }
+  Serial.println(millis());
+  Serial.println("End recording...");
+
+  //code control detect > 90%
+  //[0,1,2,3,4,5]: [_noise, _unknown, down, off, up, on]: [R-G-B-Y-W-P] 
+  if (result.classification[0].value > threshold) controlLed(1, 0, 0);
+  else if (result.classification[1].value > threshold) controlLed(0, 1, 0);
+  else if (result.classification[2].value > threshold) controlLed(0, 0, 1);
+  else if (result.classification[3].value > threshold) controlLed(1, 1, 0);
+  else if (result.classification[4].value > threshold) controlLed(1, 1, 1);
+  else if (result.classification[5].value > threshold) controlLed(1, 0, 1);
+  else controlLed(0, 0, 0);
+
+
+  // print the predictions
+  ei_printf("Predictions ");
+  ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
+            result.timing.dsp, result.timing.classification, result.timing.anomaly);
+  ei_printf(": \n");
+  for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
+    ei_printf("    %s: ", result.classification[ix].label);
+    ei_printf_float(result.classification[ix].value);
+    ei_printf("\n");
+  }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+  ei_printf("    anomaly score: ");
+  ei_printf_float(result.anomaly);
+  ei_printf("\n");
+#endif
+
+  }
+}
 
 static void audio_inference_callback(uint32_t n_bytes) {
   for (int i = 0; i < n_bytes >> 1; i++) {
@@ -91,7 +181,13 @@ static void capture_samples(void *arg) {
   vTaskDelete(NULL);
 }
 
+/**
+   @brief      Init inferencing struct and setup/start PDM
 
+   @param[in]  n_samples  The n samples
+
+   @return     { description_of_the_return_value }
+*/
 static bool microphone_inference_start(uint32_t n_samples) {
   inference.buffer = (int16_t *)malloc(n_samples * sizeof(int16_t));
 
@@ -137,7 +233,6 @@ static bool microphone_inference_record(void) {
 */
 static int microphone_audio_signal_get_data(size_t offset, size_t length, float *out_ptr) {
   numpy::int16_to_float(&inference.buffer[offset], out_ptr, length);
-
   return 0;
 }
 
@@ -199,82 +294,3 @@ static int i2s_deinit(void) {
 #if !defined(EI_CLASSIFIER_SENSOR) || EI_CLASSIFIER_SENSOR != EI_CLASSIFIER_SENSOR_MICROPHONE
 #error "Invalid model for current sensor."
 #endif
-void setup() {
-  pinMode(ledRpin, OUTPUT);
-  pinMode(ledGpin, OUTPUT);
-  pinMode(ledBpin, OUTPUT);
-  Serial.begin(115200);
-
-  while (!Serial)
-    ;
-  Serial.println("Edge Impulse Inferencing Demo");
-
-  // summary of inferencing settings (from model_metadata.h)
-  ei_printf("Inferencing settings:\n");
-  ei_printf("\tInterval: ");
-  ei_printf_float((float)EI_CLASSIFIER_INTERVAL_MS);
-  ei_printf(" ms.\n");
-  ei_printf("\tFrame size: %d\n", EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE);
-  ei_printf("\tSample length: %d ms.\n", EI_CLASSIFIER_RAW_SAMPLE_COUNT / 16);
-  ei_printf("\tNo. of classes: %d\n", sizeof(ei_classifier_inferencing_categories) / sizeof(ei_classifier_inferencing_categories[0]));
-
-  
-
-  if (microphone_inference_start(48000) == false) {
-    ei_printf("ERR: Could not allocate audio buffer (size %d), this could be due to the window length of your model\r\n", EI_CLASSIFIER_RAW_SAMPLE_COUNT);
-    return;
-  }
-
-  ei_printf("Recording...\n");
-}
-
-/**
-   @brief      Arduino main function. Runs the inferencing loop.
-*/
-void loop() {
-  bool m = microphone_inference_record();
-  if (!m) {
-    ei_printf("ERR: Failed to record audio...\n");
-    return;
-  }
-  
-  ei_printf("Recording...\n");
-
-  signal_t signal;
-  signal.total_length = EI_CLASSIFIER_RAW_SAMPLE_COUNT;
-  signal.get_data = &microphone_audio_signal_get_data;
-  ei_impulse_result_t result = { 0 };
-  
-  EI_IMPULSE_ERROR r = run_classifier(&signal, &result, debug_nn);
-  if (r != EI_IMPULSE_OK) {
-    ei_printf("ERR: Failed to run classifier (%d)\n", r);
-    return;
-  }
-  
-  //code control detect > 90%
-  //[0,1,2,3,4,5]: [down, noise, on, stop, unknown, up]: [R-G-B-Y-W-P] 
-  if (result.classification[0].value > threshold) controlLed(1, 0, 0);
-  else if (result.classification[1].value > threshold) controlLed(0, 1, 0);
-  else if (result.classification[2].value > threshold) controlLed(0, 0, 1);
-  else if (result.classification[3].value > 0.5) controlLed(1, 1, 0);
-  else if (result.classification[4].value > threshold) controlLed(1, 1, 1);
-  else if (result.classification[5].value > 0.9) controlLed(1, 0, 1);
-  else controlLed(0, 0, 0);
-
-
-  // print the predictions
-  ei_printf("Predictions ");
-  ei_printf("(DSP: %d ms., Classification: %d ms., Anomaly: %d ms.)",
-            result.timing.dsp, result.timing.classification, result.timing.anomaly);
-  ei_printf(": \n");
-  for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
-    ei_printf("    %s: ", result.classification[ix].label);
-    ei_printf_float(result.classification[ix].value);
-    ei_printf("\n");
-  }
-#if EI_CLASSIFIER_HAS_ANOMALY == 1
-  ei_printf("    anomaly score: ");
-  ei_printf_float(result.anomaly);
-  ei_printf("\n");
-#endif
-}
