@@ -2177,7 +2177,7 @@ public:
     static int cmsis_rfft_init_f32(arm_rfft_fast_instance_f32 *rfft_instance, const size_t n_fft)
     {
 // ARM cores (ex M55) with Helium extensions (MVEF) need special treatment (Issue 2843)
-#if EI_CLASSIFIER_HAS_FFT_INFO == 1 && !defined(ARM_MATH_MVEF)
+#if EI_CLASSIFIER_HAS_FFT_INFO == 1 && !defined(ARM_MATH_MVEF) && !defined(EI_CLASSIFIER_LOAD_ALL_FFTS)
         arm_status status;
         switch (n_fft) {
 #if EI_CLASSIFIER_LOAD_FFT_32 == 1

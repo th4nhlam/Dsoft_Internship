@@ -265,12 +265,13 @@ EI_IMPULSE_ERROR run_nn_inference(
     }
 
     // init softmax shape
-    std::vector<size_t> output_shape = {12,12,2};
+    std::vector<size_t> output_shape = {static_cast<size_t>(ofmap_height),static_cast<size_t>(ofmap_width),
+                                        static_cast<size_t>(ofmap_channel_number)};
     softmax_shape.BuildFrom(output_shape);
     // dumy beta parameter for softmax purposes
     dummy_params.beta = 1;
 
-    // apply softmax, becuase Akida is not supporting this operation
+    // apply softmax, becuase MX3 does not supporting this operation
     tflite::reference_ops::Softmax(dummy_params, softmax_shape, ofmap, softmax_shape, ofmap);
 
     // handle inference outputs
