@@ -8,9 +8,10 @@
 #include "freertos/task.h"
 
 #include "driver/i2s.h"
-
-
-
+#include <ir_Midea.h>
+#include "IRsend.h"
+#define kIrLed 14
+IRMideaAC ac(kIrLed);
 /** Audio buffers, pointers and selectors */
 typedef struct {
   int16_t *buffer;
@@ -39,9 +40,9 @@ static int i2s_init(uint32_t sampling_rate);
 static int i2s_deinit(void);
 
 void setup() {
-
+  ac.begin();
   Serial.begin(115200);
-
+  ac.off();
   while (!Serial)
     ;
   Serial.println("Edge Impulse Inferencing Demo");
@@ -101,6 +102,10 @@ void loop() {
     ei_printf("    %s: ", result.classification[ix].label);
     ei_printf_float(result.classification[ix].value);
     ei_printf("\n");
+  }
+
+  if(result.classification[0].value > 0.9){
+    ac.setTemp(25);
   }
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
   ei_printf("    anomaly score: ");

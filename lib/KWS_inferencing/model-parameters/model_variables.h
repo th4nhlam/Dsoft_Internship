@@ -25,21 +25,21 @@
 #include <stdint.h>
 #include "model_metadata.h"
 
-#include "tflite-model/tflite_learn_11_compiled.h"
+#include "tflite-model/tflite_learn_90_compiled.h"
 #include "edge-impulse-sdk/classifier/ei_model_types.h"
 #include "edge-impulse-sdk/classifier/inferencing_engines/engines.h"
 
-const char* ei_classifier_inferencing_categories[] = { "down", "noise", "on", "stop", "unknown", "up" };
+const char* ei_classifier_inferencing_categories[] = { "down", "noise", "on", "stop", "up" };
 
-uint8_t ei_dsp_config_10_axes[] = { 0 };
-const uint32_t ei_dsp_config_10_axes_size = 1;
-ei_dsp_config_mfcc_t ei_dsp_config_10 = {
-    10, // uint32_t blockId
+uint8_t ei_dsp_config_88_axes[] = { 0 };
+const uint32_t ei_dsp_config_88_axes_size = 1;
+ei_dsp_config_mfcc_t ei_dsp_config_88 = {
+    88, // uint32_t blockId
     4, // int implementationVersion
     1, // int length of axes
     13, // int num_cepstral
-    0.05f, // float frame_length
-    0.025f, // float frame_stride
+    0.02f, // float frame_length
+    0.02f, // float frame_stride
     32, // int num_filters
     256, // int fft_length
     101, // int win_size
@@ -51,26 +51,26 @@ ei_dsp_config_mfcc_t ei_dsp_config_10 = {
 
 const size_t ei_dsp_blocks_size = 1;
 ei_model_dsp_t ei_dsp_blocks[ei_dsp_blocks_size] = {
-    { // DSP block 10
-        507,
+    { // DSP block 88
+        650,
         &extract_mfcc_features,
-        (void*)&ei_dsp_config_10,
-        ei_dsp_config_10_axes,
-        ei_dsp_config_10_axes_size
+        (void*)&ei_dsp_config_88,
+        ei_dsp_config_88_axes,
+        ei_dsp_config_88_axes_size
     }
 };
-const ei_config_tflite_eon_graph_t ei_config_tflite_graph_11 = {
+const ei_config_tflite_eon_graph_t ei_config_tflite_graph_90 = {
     .implementation_version = 1,
-    .model_init = &tflite_learn_11_init,
-    .model_invoke = &tflite_learn_11_invoke,
-    .model_reset = &tflite_learn_11_reset,
-    .model_input = &tflite_learn_11_input,
-    .model_output = &tflite_learn_11_output,
+    .model_init = &tflite_learn_90_init,
+    .model_invoke = &tflite_learn_90_invoke,
+    .model_reset = &tflite_learn_90_reset,
+    .model_input = &tflite_learn_90_input,
+    .model_output = &tflite_learn_90_output,
 };
 
-const ei_learning_block_config_tflite_graph_t ei_learning_block_config_11 = {
+const ei_learning_block_config_tflite_graph_t ei_learning_block_config_90 = {
     .implementation_version = 1,
-    .block_id = 11,
+    .block_id = 90,
     .object_detection = 0,
     .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_UNKNOWN,
     .output_data_tensor = 0,
@@ -78,14 +78,14 @@ const ei_learning_block_config_tflite_graph_t ei_learning_block_config_11 = {
     .output_score_tensor = 2,
     .quantized = 1,
     .compiled = 1,
-    .graph_config = (void*)&ei_config_tflite_graph_11
+    .graph_config = (void*)&ei_config_tflite_graph_90
 };
 
 const size_t ei_learning_blocks_size = 1;
 const ei_learning_block_t ei_learning_blocks[ei_learning_blocks_size] = {
     {
         &run_nn_inference,
-        (void*)&ei_learning_block_config_11,
+        (void*)&ei_learning_block_config_90,
         EI_CLASSIFIER_IMAGE_SCALING_NONE,
     },
 };
@@ -99,13 +99,13 @@ const ei_model_performance_calibration_t ei_calibration = {
     0   /* Don't use flags */
 };
 
-const ei_impulse_t impulse_267320_3 = {
-    .project_id = 267320,
+const ei_impulse_t impulse_270517_17 = {
+    .project_id = 270517,
     .project_owner = "Phạm Trần Thanh Lâm",
-    .project_name = "custom_model",
-    .deploy_version = 3,
+    .project_name = "NguyenHua_model_v2",
+    .deploy_version = 17,
 
-    .nn_input_frame_size = 507,
+    .nn_input_frame_size = 650,
     .raw_sample_count = 16000,
     .raw_samples_per_frame = 1,
     .dsp_input_frame_size = 16000 * 1,
@@ -123,7 +123,7 @@ const ei_impulse_t impulse_267320_3 = {
     .object_detection_last_layer = EI_CLASSIFIER_LAST_LAYER_UNKNOWN,
     .fomo_output_size = 0,
     
-    .tflite_output_features_count = 6,
+    .tflite_output_features_count = 5,
     .learning_blocks_size = ei_learning_blocks_size,
     .learning_blocks = ei_learning_blocks,
 
@@ -135,11 +135,11 @@ const ei_impulse_t impulse_267320_3 = {
     .slices_per_model_window = 4,
 
     .has_anomaly = 0,
-    .label_count = 6,
+    .label_count = 5,
     .calibration = ei_calibration,
     .categories = ei_classifier_inferencing_categories
 };
 
-const ei_impulse_t ei_default_impulse = impulse_267320_3;
+const ei_impulse_t ei_default_impulse = impulse_270517_17;
 
 #endif // _EI_CLASSIFIER_MODEL_METADATA_H_
