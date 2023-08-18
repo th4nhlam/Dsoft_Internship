@@ -8,10 +8,10 @@
 #include "freertos/task.h"
 
 #include "driver/i2s.h"
-#include <ir_Midea.h>
-#include "IRsend.h"
-#define kIrLed 14
-IRMideaAC ac(kIrLed);
+
+#define RED_LED 21
+#define GREEN_LED 22
+#define BLUE_LED 23
 /** Audio buffers, pointers and selectors */
 typedef struct {
   int16_t *buffer;
@@ -19,7 +19,11 @@ typedef struct {
   uint32_t buf_count;
   uint32_t n_samples;
 } inference_t;
-
+void controlLed( uint8_t red, uint8_t blue, uint8_t green) {
+  digitalWrite(BLUE_LED, blue);
+  digitalWrite(GREEN_LED, green);
+  digitalWrite(RED_LED, red);
+}
 static inference_t inference;
 static const uint32_t sample_buffer_size = 2048;
 static signed short sampleBuffer[sample_buffer_size];
@@ -39,10 +43,15 @@ static void microphone_inference_end(void);
 static int i2s_init(uint32_t sampling_rate);
 static int i2s_deinit(void);
 
+void controlLed(int led, int status) {
+  digitalWrite(led, status);
+}
 void setup() {
-  ac.begin();
+  pinMode(RED_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(BLUE_LED, OUTPUT);
   Serial.begin(115200);
-  ac.off();
+  
   while (!Serial)
     ;
   Serial.println("Edge Impulse Inferencing Demo");
@@ -89,7 +98,7 @@ void loop() {
   }
 
   //code control detect > 90%
-  //[0,1,2,3,4,5]: [_noise, _unknown, down, off, up, on]: [R-G-B-Y-W-P] 
+  //[0,1,2,3,4,5]: [down, noise, on, stop, up]: [] 
 
 
 
@@ -104,9 +113,27 @@ void loop() {
     ei_printf("\n");
   }
 
-  if(result.classification[0].value > 0.9){
-    ac.setTemp(25);
+  //control LED
+  if(result.classification[0].value>0.8){//down RED
+    controlLed(1,0,0);
   }
+  else if (result.classification[2].value>0.8){//on GREEN
+    controlLed(0,1,0);
+  }
+  else if (result.classification[3].value>0.8){ //stop BLUE
+    controlLed(0,0,1);
+  }
+  else if (result.classification[4].value>0.8){ //up YELLOW
+    controlLed(1,1,0);
+  }
+  else if (result.classification[1].value>0.8){ //noise WHITE
+    controlLed(1,1,1);
+  }
+  else{//nothing
+    controlLed(0,0,0);
+  }
+
+
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
   ei_printf("    anomaly score: ");
   ei_printf_float(result.anomaly);
